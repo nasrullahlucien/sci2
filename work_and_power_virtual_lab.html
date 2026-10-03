@@ -1,0 +1,832 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Work and Power Virtual Lab</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@400;600;800&display=swap" rel="stylesheet">
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <style>
+        body {
+            font-family: 'Noto Sans Thai', sans-serif;
+            background-color: #40E0D0; /* Turquoise background */
+            margin: 0;
+            padding: 0;
+            min-height: 100vh;
+            overflow-x: hidden;
+            color: #1f2937;
+        }
+
+        /* Background Text */
+        .bg-text {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 15vw;
+            font-weight: 800;
+            color: rgba(255, 255, 255, 0.15);
+            z-index: -1;
+            white-space: nowrap;
+            pointer-events: none;
+            user-select: none;
+        }
+
+        /* Glassmorphism Card Base */
+        .glass-card {
+            background: rgba(255, 255, 255, 0.4);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.5);
+            border-radius: 1.5rem;
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+        }
+
+        /* Important Card Light Sweep Effect */
+        .important-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -150%;
+            width: 50%;
+            height: 100%;
+            background: linear-gradient(to right, 
+                rgba(255,255,255,0) 0%, 
+                rgba(255,255,255,0.6) 50%, 
+                rgba(255,255,255,0) 100%);
+            transform: skewX(-25deg);
+            animation: sweep 10s infinite cubic-bezier(0.4, 0, 0.2, 1);
+            pointer-events: none;
+            z-index: 10;
+        }
+
+        @keyframes sweep {
+            0% { left: -150%; }
+            15% { left: 150%; } /* Fast sweep */
+            100% { left: 150%; } /* Long pause */
+        }
+
+        /* Interactive Elements styling */
+        .btn-interactive {
+            transition: all 0.2s ease-in-out;
+            border-radius: 20px;
+        }
+        .btn-interactive:hover:not(:disabled) {
+            transform: scale(1.05) translateY(-2px);
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.15);
+        }
+        .btn-interactive:active:not(:disabled) {
+            transform: scale(0.95);
+        }
+        .btn-interactive:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        /* Canvas Container */
+        .canvas-container {
+            width: 100%;
+            aspect-ratio: 1 / 1;
+            position: relative;
+            border-radius: 1rem;
+            overflow: hidden;
+            background: rgba(255,255,255,0.7);
+        }
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+
+        /* Range Slider Styling */
+        input[type=range] {
+            accent-color: #3b82f6;
+        }
+    </style>
+</head>
+<body class="p-4 md:p-8">
+
+    <div class="bg-text">KRU P-NUT</div>
+
+    <div class="max-w-7xl mx-auto space-y-6">
+        
+        <!-- Header -->
+        <header class="text-center mb-8">
+            <h1 class="text-4xl md:text-5xl font-extrabold text-white drop-shadow-md tracking-tight">
+                🔬 งานและกำลัง (Work & Power) ⚡
+            </h1>
+            <p class="text-lg text-teal-900 mt-2 font-semibold bg-white/30 inline-block px-4 py-1 rounded-full">
+                Virtual Science Lab
+            </p>
+        </header>
+
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            
+            <!-- Left Column: Simulation & Challenge -->
+            <div class="space-y-6 flex flex-col">
+                
+                <!-- Challenge Box -->
+                <div class="glass-card important-card">
+                    <div class="bg-orange-500 text-white p-3 font-bold text-lg flex items-center">
+                        <span class="text-2xl mr-2">🏆</span> The Efficient Worker Challenge
+                    </div>
+                    <div class="p-4 bg-white/20">
+                        <p class="font-semibold text-gray-800">
+                            ภารกิจ: ปรับค่าต่างๆ เพื่อสร้าง <span class="text-red-600 font-bold">งาน (Work) = 1,200 J</span> 
+                            และ <span class="text-blue-600 font-bold">กำลัง (Power) = 120 W</span> ให้ได้พอดี!
+                        </p>
+                        <p class="text-sm text-gray-700 mt-1">ลองหาวิธีที่แตกต่างกัน 2 วิธีดูสิ</p>
+                    </div>
+                </div>
+
+                <!-- Simulation Canvas -->
+                <div class="glass-card flex-grow shadow-xl">
+                    <div class="bg-blue-600 text-white p-3 font-bold text-lg flex items-center justify-between">
+                        <span><span class="text-2xl mr-2">📺</span> พื้นที่จำลองสถานการณ์</span>
+                        <span id="statusBadge" class="bg-blue-400 text-xs px-2 py-1 rounded-full border border-blue-300">พร้อม</span>
+                    </div>
+                    <div class="p-4 flex justify-center items-center h-full">
+                        <div class="canvas-container shadow-inner border-2 border-white/50">
+                            <canvas id="simCanvas" width="500" height="500"></canvas>
+                            
+                            <!-- Timer Overlay -->
+                            <div id="timerDisplay" class="absolute top-2 right-2 bg-black/60 text-white font-mono text-xl px-3 py-1 rounded-lg hidden">
+                                0.0 s
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Column: Controls & Data -->
+            <div class="space-y-6">
+                
+                <!-- Controls Card -->
+                <div class="glass-card important-card">
+                    <div class="bg-emerald-500 text-white p-3 font-bold text-lg flex items-center">
+                        <span class="text-2xl mr-2">⚙️</span> แผงควบคุม (Controls)
+                    </div>
+                    <div class="p-5 space-y-4">
+                        
+                        <!-- Action Dropdown -->
+                        <div>
+                            <label class="block font-bold text-gray-800 mb-1">🧑‍🔬 รูปแบบการออกแรง (Action Type):</label>
+                            <select id="actionType" class="w-full p-2 rounded-lg border-2 border-emerald-300 focus:outline-none focus:border-emerald-500 bg-white/80 shadow-sm transition-colors text-lg" onmouseenter="playHover()">
+                                <option value="push">ผลักแนวนอน (Push horizontally)</option>
+                                <option value="pull">ดึงทำมุม 60 องศา (Pull at 60° angle)</option>
+                                <option value="carry">ถือเดินแนวนอน (Carry horizontally)</option>
+                                <option value="lift">ยกขึ้นแนวดิ่ง (Lift vertically)</option>
+                            </select>
+                        </div>
+
+                        <!-- Force Slider -->
+                        <div class="bg-white/40 p-3 rounded-xl">
+                            <label class="flex justify-between font-bold text-gray-800">
+                                <span>💪 แรง (Force, F):</span>
+                                <span class="text-red-600"><span id="forceVal">100</span> N</span>
+                            </label>
+                            <input type="range" id="forceInput" min="0" max="500" step="10" value="100" class="w-full mt-2 cursor-pointer" oninput="updateControls()" onmouseenter="playHover()">
+                        </div>
+
+                        <!-- Distance Slider -->
+                        <div class="bg-white/40 p-3 rounded-xl">
+                            <label class="flex justify-between font-bold text-gray-800">
+                                <span>📏 ระยะทาง (Distance, s):</span>
+                                <span class="text-blue-600"><span id="distVal">5</span> m</span>
+                            </label>
+                            <input type="range" id="distInput" min="0" max="20" step="1" value="5" class="w-full mt-2 cursor-pointer" oninput="updateControls()" onmouseenter="playHover()">
+                        </div>
+
+                        <!-- Time Slider -->
+                        <div class="bg-white/40 p-3 rounded-xl">
+                            <label class="flex justify-between font-bold text-gray-800">
+                                <span>⏱️ เวลา (Time, t):</span>
+                                <span class="text-purple-600"><span id="timeVal">5</span> s</span>
+                            </label>
+                            <input type="range" id="timeInput" min="1" max="60" step="1" value="5" class="w-full mt-2 cursor-pointer" oninput="updateControls()" onmouseenter="playHover()">
+                        </div>
+
+                        <!-- Action Buttons -->
+                        <div class="flex gap-4 pt-2">
+                            <button id="startBtn" class="flex-1 btn-interactive bg-green-500 text-white font-bold py-3 text-lg shadow-green-500/50" onclick="startSimulation()" onmouseenter="playHover()">
+                                ▶️ เริ่ม (Start)
+                            </button>
+                            <button id="resetBtn" class="w-1/3 btn-interactive bg-gray-400 text-white font-bold py-3 shadow-gray-400/50" onclick="resetSimulation()" onmouseenter="playHover()">
+                                🔄 รีเซ็ต
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Calculation & Feedback (Hidden initially) -->
+                <div id="calcArea" class="glass-card hidden">
+                    <div class="bg-purple-600 text-white p-3 font-bold text-lg flex items-center">
+                        <span class="text-2xl mr-2">🧠</span> พื้นที่คำนวณ (Calculation)
+                    </div>
+                    <div class="p-5">
+                        <p class="text-gray-700 font-semibold mb-3">เมื่อการเคลื่อนที่จบลง ลองคำนวณดูสิ!</p>
+                        
+                        <div class="flex flex-col sm:flex-row gap-4 mb-4">
+                            <div class="flex-1">
+                                <label class="block font-bold text-sm text-gray-800">งาน (Work) [J]:</label>
+                                <input type="number" id="userWork" placeholder="W = F * s" class="w-full p-2 border rounded shadow-inner text-center font-bold text-lg">
+                            </div>
+                            <div class="flex-1">
+                                <label class="block font-bold text-sm text-gray-800">กำลัง (Power) [W]:</label>
+                                <input type="number" id="userPower" placeholder="P = W / t" class="w-full p-2 border rounded shadow-inner text-center font-bold text-lg">
+                            </div>
+                        </div>
+                        
+                        <button class="w-full btn-interactive bg-purple-500 text-white font-bold py-2 shadow-purple-500/50" onclick="checkAnswer()" onmouseenter="playHover()">
+                            ✅ ตรวจสอบ (Calculate/Check)
+                        </button>
+
+                        <div id="feedbackMsg" class="mt-4 p-3 rounded-lg hidden font-bold text-center"></div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- Bottom Area: Data Table and Graphs -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            
+            <!-- Data Table -->
+            <div class="glass-card overflow-hidden">
+                <div class="bg-pink-500 text-white p-3 font-bold text-lg flex items-center">
+                    <span class="text-2xl mr-2">📊</span> บันทึกผลการทดลอง (Data Table)
+                </div>
+                <div class="p-0 overflow-x-auto">
+                    <table class="w-full text-sm text-left">
+                        <thead class="bg-white/40 text-gray-800 font-bold border-b border-white/50 uppercase">
+                            <tr>
+                                <th class="px-4 py-3">Trial</th>
+                                <th class="px-4 py-3">Action</th>
+                                <th class="px-4 py-3 text-red-700">F (N)</th>
+                                <th class="px-4 py-3 text-blue-700">s (m)</th>
+                                <th class="px-4 py-3 text-purple-700">t (s)</th>
+                                <th class="px-4 py-3 text-green-700">W (J)</th>
+                                <th class="px-4 py-3 text-orange-700">P (W)</th>
+                            </tr>
+                        </thead>
+                        <tbody id="dataTableBody" class="divide-y divide-white/20">
+                            <!-- Rows will be added here -->
+                        </tbody>
+                    </table>
+                    <div id="emptyTableMsg" class="text-center p-4 text-gray-600 font-semibold italic">
+                        ยังไม่มีข้อมูล ทำการทดลองเพื่อบันทึกผล
+                    </div>
+                </div>
+            </div>
+
+            <!-- Graphs -->
+            <div class="glass-card">
+                <div class="bg-indigo-500 text-white p-3 font-bold text-lg flex items-center justify-between">
+                    <span><span class="text-2xl mr-2">📈</span> กราฟวิเคราะห์ (Graphs)</span>
+                    <select id="chartToggle" class="text-sm text-black rounded p-1" onchange="toggleChart()" onmouseenter="playHover()">
+                        <option value="work">กราฟแท่ง: งาน (Work)</option>
+                        <option value="power">กราฟเส้น: กำลัง (Power)</option>
+                    </select>
+                </div>
+                <div class="p-4 bg-white/50 h-64 relative">
+                    <canvas id="chartCanvas"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <footer class="text-center text-teal-800 font-bold py-6 mt-8">
+            Created by Nasrullah Lucien
+        </footer>
+
+    </div>
+
+    <script>
+        // --- Web Audio API for Interaction Sounds ---
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        let audioCtx;
+
+        function initAudio() {
+            if (!audioCtx) {
+                audioCtx = new AudioContext();
+            }
+            if (audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+        }
+
+        function playTone(freq, type, duration, vol = 0.1) {
+            try {
+                initAudio();
+                const osc = audioCtx.createOscillator();
+                const gainNode = audioCtx.createGain();
+                
+                osc.type = type;
+                osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+                
+                gainNode.gain.setValueAtTime(vol, audioCtx.currentTime);
+                gainNode.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
+                
+                osc.connect(gainNode);
+                gainNode.connect(audioCtx.destination);
+                
+                osc.start();
+                osc.stop(audioCtx.currentTime + duration);
+            } catch (e) { console.log("Audio skipped"); }
+        }
+
+        function playHover() { playTone(880, 'sine', 0.05, 0.05); } // High brief tick
+        function playClick() { playTone(440, 'square', 0.1, 0.1); } // Pop sound
+        function playSuccess() { 
+            playTone(523.25, 'triangle', 0.1); // C5
+            setTimeout(() => playTone(659.25, 'triangle', 0.1), 100); // E5
+            setTimeout(() => playTone(783.99, 'triangle', 0.2), 200); // G5
+        }
+        function playError() {
+            playTone(200, 'sawtooth', 0.3, 0.2);
+        }
+
+        // Attach click sound to interactive buttons globally
+        document.addEventListener('click', (e) => {
+            if(e.target.closest('.btn-interactive') || e.target.closest('select')) {
+                playClick();
+            }
+        });
+
+        // --- State Variables ---
+        const state = {
+            action: 'push',
+            force: 100,
+            distance: 5,
+            time: 5,
+            isAnimating: false,
+            animProgress: 0, // 0 to 1
+            startTime: 0,
+            actualWork: 0,
+            actualPower: 0,
+            trials: [],
+            trialCount: 0
+        };
+
+        // DOM Elements
+        const canvas = document.getElementById('simCanvas');
+        const ctx = canvas.getContext('2d');
+        const forceInput = document.getElementById('forceInput');
+        const distInput = document.getElementById('distInput');
+        const timeInput = document.getElementById('timeInput');
+        const actionType = document.getElementById('actionType');
+        
+        // --- Canvas Drawing Functions ---
+        function drawScene() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            const w = canvas.width;
+            const h = canvas.height;
+            const groundY = h * 0.8;
+            
+            // Draw Background elements
+            ctx.fillStyle = '#e5e7eb'; // light gray wall
+            ctx.fillRect(0, 0, w, groundY);
+            
+            // Draw Ground/Ruler
+            ctx.fillStyle = '#9ca3af'; // darker gray floor
+            ctx.fillRect(0, groundY, w, h - groundY);
+            
+            // Draw markings on ground
+            ctx.strokeStyle = '#4b5563';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(0, groundY);
+            ctx.lineTo(w, groundY);
+            ctx.stroke();
+            
+            for(let i=0; i<=20; i+=2) {
+                let x = 50 + (i/20) * (w - 100);
+                ctx.beginPath();
+                ctx.moveTo(x, groundY);
+                ctx.lineTo(x, groundY + 10);
+                ctx.stroke();
+                if(i%4 === 0) {
+                    ctx.fillStyle = '#374151';
+                    ctx.font = '12px Noto Sans Thai';
+                    ctx.textAlign = 'center';
+                    ctx.fillText(i + 'm', x, groundY + 25);
+                }
+            }
+
+            // Calculations for object position
+            const startX = 50;
+            const endX = startX + (state.distance / 20) * (w - 100);
+            const startY = groundY;
+            
+            let currentX = startX;
+            let currentY = startY;
+            
+            // Apply animation progress
+            if(state.action === 'lift') {
+                // Lift vertically
+                const maxLift = h * 0.5;
+                const endY = startY - (state.distance / 20) * maxLift;
+                currentX = startX + (w/2 - startX); // Center it horizontally
+                currentY = startY - (startY - endY) * state.animProgress;
+            } else {
+                // Move horizontally
+                currentX = startX + (endX - startX) * state.animProgress;
+            }
+
+            const boxSize = 60;
+            const charSize = 50;
+
+            // Draw Character and Box based on action
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'bottom';
+            
+            if (state.action === 'push') {
+                ctx.font = '40px Arial';
+                ctx.fillText('🧑‍🔬', currentX - 30, groundY);
+                ctx.font = '50px Arial';
+                ctx.fillText('📦', currentX + 20, groundY);
+                
+                // Vectors
+                if(state.force > 0) drawArrow(currentX - 10, groundY - 25, currentX + 40, groundY - 25, 'red', 'F');
+                if(state.animProgress > 0) drawArrow(startX+20, groundY + 40, currentX+20, groundY + 40, 'blue', 's');
+            } 
+            else if (state.action === 'pull') {
+                ctx.font = '40px Arial';
+                ctx.fillText('🧑‍🔬', currentX + 60, groundY);
+                ctx.font = '50px Arial';
+                ctx.fillText('📦', currentX, groundY);
+                
+                // Rope
+                ctx.beginPath();
+                ctx.moveTo(currentX + 10, groundY - 25);
+                ctx.lineTo(currentX + 45, groundY - 35);
+                ctx.strokeStyle = '#8B4513';
+                ctx.lineWidth = 3;
+                ctx.stroke();
+
+                // Vectors
+                if(state.force > 0) {
+                    const angle = -60 * Math.PI / 180;
+                    const len = 50;
+                    drawArrow(currentX+10, groundY-25, currentX+10 + len*Math.cos(angle), groundY-25 + len*Math.sin(angle), 'red', 'F (60°)');
+                }
+                if(state.animProgress > 0) drawArrow(startX, groundY + 40, currentX, groundY + 40, 'blue', 's');
+            }
+            else if (state.action === 'carry') {
+                ctx.font = '50px Arial';
+                ctx.fillText('🧑‍🔬', currentX, groundY);
+                ctx.font = '30px Arial';
+                ctx.fillText('📦', currentX + 10, groundY - 30); // Box held high
+                
+                // Vectors
+                if(state.force > 0) drawArrow(currentX+10, groundY-45, currentX+10, groundY-85, 'red', 'F (ต้านแรงโน้มถ่วง)');
+                if(state.animProgress > 0) drawArrow(startX, groundY + 40, currentX, groundY + 40, 'blue', 's');
+                
+                // Highlight perpendicular if animated
+                if(state.animProgress > 0 && state.force > 0) {
+                     ctx.strokeStyle = 'magenta';
+                     ctx.setLineDash([5, 5]);
+                     ctx.beginPath();
+                     ctx.moveTo(currentX, groundY-45);
+                     ctx.lineTo(currentX, groundY+40);
+                     ctx.stroke();
+                     ctx.setLineDash([]);
+                }
+            }
+            else if (state.action === 'lift') {
+                ctx.font = '40px Arial';
+                ctx.fillText('🧑‍🔬', currentX - 40, groundY);
+                ctx.font = '50px Arial';
+                ctx.fillText('📦', currentX, currentY);
+                
+                // Vectors
+                if(state.force > 0) drawArrow(currentX, currentY - 50, currentX, currentY - 90, 'red', 'F');
+                if(state.animProgress > 0) drawArrow(currentX + 40, groundY, currentX + 40, currentY, 'blue', 's');
+            }
+        }
+
+        function drawArrow(fromx, fromy, tox, toy, color, label) {
+            const headlen = 10; 
+            const dx = tox - fromx;
+            const dy = toy - fromy;
+            const angle = Math.atan2(dy, dx);
+            
+            ctx.beginPath();
+            ctx.strokeStyle = color;
+            ctx.fillStyle = color;
+            ctx.lineWidth = 3;
+            ctx.moveTo(fromx, fromy);
+            ctx.lineTo(tox, toy);
+            ctx.lineTo(tox - headlen * Math.cos(angle - Math.PI / 6), toy - headlen * Math.sin(angle - Math.PI / 6));
+            ctx.moveTo(tox, toy);
+            ctx.lineTo(tox - headlen * Math.cos(angle + Math.PI / 6), toy - headlen * Math.sin(angle + Math.PI / 6));
+            ctx.stroke();
+            
+            if(label) {
+                ctx.font = 'bold 14px Arial';
+                // Adjust label position slightly based on angle
+                let lx = tox + 10 * Math.cos(angle);
+                let ly = toy + 10 * Math.sin(angle);
+                ctx.textAlign = 'left';
+                if(angle < -Math.PI/2 || angle > Math.PI/2) ctx.textAlign = 'right';
+                ctx.fillText(label, lx, ly);
+            }
+        }
+
+        // --- Core Logic & Animation ---
+        function updateControls() {
+            state.force = parseFloat(forceInput.value);
+            state.distance = parseFloat(distInput.value);
+            state.time = parseFloat(timeInput.value);
+            state.action = actionType.value;
+            
+            document.getElementById('forceVal').innerText = state.force;
+            document.getElementById('distVal').innerText = state.distance;
+            document.getElementById('timeVal').innerText = state.time;
+            
+            if(!state.isAnimating && state.animProgress === 0) {
+                drawScene();
+            }
+        }
+
+        function calculatePhysics() {
+            let W = 0;
+            let F = state.force;
+            let s = state.distance;
+            let t = state.time;
+
+            if(state.action === 'push' || state.action === 'lift') {
+                W = F * s;
+            } else if (state.action === 'pull') {
+                W = F * s * Math.cos(60 * Math.PI / 180); // W = F*s*cos(60) = F*s*0.5
+            } else if (state.action === 'carry') {
+                W = 0; // cos(90) = 0
+            }
+            
+            let P = t > 0 ? W / t : 0;
+            
+            // Round to 2 decimals for floating point weirdness
+            state.actualWork = Math.round(W * 100) / 100;
+            state.actualPower = Math.round(P * 100) / 100;
+        }
+
+        function startSimulation() {
+            if(state.isAnimating) return;
+            
+            updateControls();
+            calculatePhysics();
+            
+            // Disable inputs
+            forceInput.disabled = true; distInput.disabled = true; timeInput.disabled = true; actionType.disabled = true;
+            document.getElementById('startBtn').disabled = true;
+            document.getElementById('calcArea').classList.add('hidden');
+            document.getElementById('statusBadge').innerText = "กำลังจำลอง...";
+            document.getElementById('statusBadge').className = "bg-yellow-400 text-black text-xs px-2 py-1 rounded-full animate-pulse";
+            document.getElementById('timerDisplay').classList.remove('hidden');
+            
+            state.isAnimating = true;
+            state.animProgress = 0;
+            state.startTime = performance.now();
+            
+            requestAnimationFrame(animationLoop);
+        }
+
+        function animationLoop(timestamp) {
+            if(!state.isAnimating) return;
+            
+            const elapsed = (timestamp - state.startTime) / 1000; // in seconds
+            state.animProgress = Math.min(elapsed / state.time, 1);
+            
+            // Update Timer UI
+            document.getElementById('timerDisplay').innerText = elapsed.toFixed(1) + " s";
+            
+            drawScene();
+            
+            if(state.animProgress < 1) {
+                requestAnimationFrame(animationLoop);
+            } else {
+                endSimulation();
+            }
+        }
+
+        function endSimulation() {
+            state.isAnimating = false;
+            document.getElementById('timerDisplay').innerText = state.time.toFixed(1) + " s";
+            document.getElementById('statusBadge').innerText = "เสร็จสิ้น";
+            document.getElementById('statusBadge').className = "bg-green-500 text-white text-xs px-2 py-1 rounded-full";
+            
+            // Show Calculation Area
+            document.getElementById('calcArea').classList.remove('hidden');
+            document.getElementById('userWork').value = '';
+            document.getElementById('userPower').value = '';
+            document.getElementById('feedbackMsg').classList.add('hidden');
+            
+            // Re-enable start btn for quick restart, but usually user should calculate first
+            document.getElementById('startBtn').disabled = false;
+            forceInput.disabled = false; distInput.disabled = false; timeInput.disabled = false; actionType.disabled = false;
+        }
+
+        function resetSimulation() {
+            state.isAnimating = false;
+            state.animProgress = 0;
+            document.getElementById('timerDisplay').classList.add('hidden');
+            document.getElementById('calcArea').classList.add('hidden');
+            document.getElementById('statusBadge').innerText = "พร้อม";
+            document.getElementById('statusBadge').className = "bg-blue-400 text-xs px-2 py-1 rounded-full";
+            document.getElementById('startBtn').disabled = false;
+            forceInput.disabled = false; distInput.disabled = false; timeInput.disabled = false; actionType.disabled = false;
+            drawScene();
+        }
+
+        // --- Pedagogical Logic ---
+        function checkAnswer() {
+            const uW = parseFloat(document.getElementById('userWork').value);
+            const uP = parseFloat(document.getElementById('userPower').value);
+            const msgBox = document.getElementById('feedbackMsg');
+            
+            msgBox.classList.remove('hidden', 'bg-green-100', 'text-green-800', 'bg-red-100', 'text-red-800', 'bg-yellow-100', 'text-yellow-800');
+
+            if(isNaN(uW) || isNaN(uP)) {
+                playError();
+                msgBox.classList.add('bg-yellow-100', 'text-yellow-800');
+                msgBox.innerHTML = "⚠️ กรุณากรอกตัวเลขให้ครบถ้วน";
+                return;
+            }
+
+            // Allow small margin of error (e.g. 0.1) for decimal inputs
+            const isWorkCorrect = Math.abs(uW - state.actualWork) < 0.2;
+            const isPowerCorrect = Math.abs(uP - state.actualPower) < 0.2;
+
+            if(isWorkCorrect && isPowerCorrect) {
+                playSuccess();
+                msgBox.classList.add('bg-green-100', 'text-green-800');
+                let extraMsg = "";
+                
+                if(state.action === 'carry') {
+                    extraMsg = "<br><br>💡 <b>จำไว้!</b> การเดินถือของในแนวนอน ทิศทางของแรง (ชี้ขึ้น) และการกระจัด (ชี้ไปข้างหน้า) ตั้งฉากกัน ทำให้เกิดมุม 90 องศา (cos 90° = 0) <b>งานทางวิทยาศาสตร์จึงมีค่าเป็นศูนย์ (0) เสมอ!</b><br><small><i>(In real life, always use proper lifting techniques to protect your back!)</i></small>";
+                } else if (state.action === 'pull') {
+                     extraMsg = "<br><br>💡 เก่งมาก! เพราะดึงทำมุม 60° จึงต้องคูณด้วย cos(60°) = 0.5";
+                }
+
+                // Check Challenge Condition
+                if(state.actualWork === 1200 && state.actualPower === 120) {
+                     extraMsg += "<br><br>🌟 <b>สุดยอด!! คุณพิชิต The Efficient Worker Challenge ได้แล้ว!</b> 🌟";
+                     confettiEffect(); // Call a simple visual effect
+                }
+
+                msgBox.innerHTML = `✅ ถูกต้อง! งาน = ${state.actualWork} J, กำลัง = ${state.actualPower} W${extraMsg}`;
+                
+                logData();
+                
+            } else {
+                playError();
+                msgBox.classList.add('bg-red-100', 'text-red-800');
+                let hint = "❌ ยังไม่ถูกต้อง ลองคำนวณใหม่นะ<br>";
+                if(!isWorkCorrect) {
+                    if(state.action === 'carry') hint += "<i>คำใบ้: สังเกตทิศทางของลูกศรแรง (สีแดง) และการเคลื่อนที่ (สีน้ำเงิน) ว่าทำมุมกันกี่องศา?</i>";
+                    else if(state.action === 'pull') hint += "<i>คำใบ้: อย่าลืมคูณด้วยมุม (cos 60° = 0.5)</i>";
+                    else hint += "<i>สูตร: W = F × s</i>";
+                } else {
+                    hint += "<i>งาน (W) ถูกแล้ว แต่กำลัง (P) ผิด สูตร: P = W / t</i>";
+                }
+                msgBox.innerHTML = hint;
+            }
+        }
+
+        // Simple confetti by drawing quickly on canvas overlay or just changing bg color
+        function confettiEffect() {
+            const card = document.querySelector('.important-card');
+            const originalBg = card.style.background;
+            card.style.background = 'linear-gradient(45deg, #f39c12, #f1c40f, #e74c3c, #9b59b6)';
+            setTimeout(() => card.style.background = originalBg, 2000);
+        }
+
+        // --- Data & Charts Logic ---
+        let myChart = null;
+
+        function logData() {
+            state.trialCount++;
+            
+            // Format action name
+            let actionName = "";
+            switch(state.action) {
+                case 'push': actionName = 'ผลัก'; break;
+                case 'pull': actionName = 'ดึง (60°)'; break;
+                case 'carry': actionName = 'ถือเดิน'; break;
+                case 'lift': actionName = 'ยกขึ้น'; break;
+            }
+
+            const trialObj = {
+                trial: state.trialCount,
+                action: actionName,
+                F: state.force,
+                s: state.distance,
+                t: state.time,
+                W: state.actualWork,
+                P: state.actualPower
+            };
+            state.trials.push(trialObj);
+
+            // Update Table
+            document.getElementById('emptyTableMsg').style.display = 'none';
+            const tbody = document.getElementById('dataTableBody');
+            const tr = document.createElement('tr');
+            tr.className = "hover:bg-white/50 transition-colors";
+            tr.innerHTML = `
+                <td class="px-4 py-2 font-bold">${trialObj.trial}</td>
+                <td class="px-4 py-2">${trialObj.action}</td>
+                <td class="px-4 py-2 text-red-600 font-semibold">${trialObj.F}</td>
+                <td class="px-4 py-2 text-blue-600 font-semibold">${trialObj.s}</td>
+                <td class="px-4 py-2 text-purple-600 font-semibold">${trialObj.t}</td>
+                <td class="px-4 py-2 text-green-600 font-bold">${trialObj.W}</td>
+                <td class="px-4 py-2 text-orange-600 font-bold">${trialObj.P}</td>
+            `;
+            tbody.appendChild(tr);
+
+            updateChart();
+        }
+
+        function initChart() {
+            const ctxChart = document.getElementById('chartCanvas').getContext('2d');
+            myChart = new Chart(ctxChart, {
+                type: 'bar', // Default
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: 'งาน (Work) [J]',
+                        data: [],
+                        backgroundColor: 'rgba(74, 222, 128, 0.6)', // Green
+                        borderColor: 'rgba(22, 163, 74, 1)',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: { y: { beginAtZero: true } },
+                    animation: { duration: 500 }
+                }
+            });
+        }
+
+        function toggleChart() {
+            updateChart();
+        }
+
+        function updateChart() {
+            if(!myChart) initChart();
+            
+            const chartType = document.getElementById('chartToggle').value;
+            const labels = state.trials.map(t => `Trial ${t.trial}`);
+            
+            if(chartType === 'work') {
+                const dataW = state.trials.map(t => t.W);
+                myChart.config.type = 'bar';
+                myChart.data.labels = labels;
+                myChart.data.datasets = [{
+                    label: 'งาน (Work) [J]',
+                    data: dataW,
+                    backgroundColor: 'rgba(74, 222, 128, 0.7)',
+                    borderColor: 'rgb(22, 163, 74)',
+                    borderWidth: 1
+                }];
+            } else {
+                const dataP = state.trials.map(t => t.P);
+                myChart.config.type = 'line';
+                myChart.data.labels = labels;
+                myChart.data.datasets = [{
+                    label: 'กำลัง (Power) [W]',
+                    data: dataP,
+                    backgroundColor: 'rgba(249, 115, 22, 0.2)',
+                    borderColor: 'rgb(234, 88, 12)',
+                    borderWidth: 2,
+                    tension: 0.3,
+                    fill: true
+                }];
+            }
+            myChart.update();
+        }
+
+        // Initialize on load
+        window.onload = () => {
+            // Event listeners for inputs to play sound and draw
+            document.querySelectorAll('select, input[type=range]').forEach(el => {
+                el.addEventListener('change', updateControls);
+            });
+            
+            initChart();
+            updateControls(); // Initial draw
+        };
+
+    </script>
+</body>
+</html>
